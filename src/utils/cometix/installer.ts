@@ -1,16 +1,13 @@
-import { exec } from 'node:child_process'
-import { promisify } from 'node:util'
 import ansis from 'ansis'
 import { ensureI18nInitialized, i18n } from '../../i18n'
 import { addCCometixLineConfig, hasCCometixLineConfig } from '../ccometixline-config'
-import { COMETIX_COMMANDS } from './common'
-
-const execAsync = promisify(exec)
+import { execNpmCommand } from '../exec-wrapper'
+import { COMETIX_PACKAGE_NAME } from './common'
 
 export async function isCometixLineInstalled(): Promise<boolean> {
   try {
-    await execAsync(COMETIX_COMMANDS.CHECK_INSTALL)
-    return true
+    const result = await execNpmCommand(['list', '-g', COMETIX_PACKAGE_NAME], { silent: true })
+    return result.exitCode === 0
   }
   catch {
     return false
@@ -28,8 +25,13 @@ export async function installCometixLine(): Promise<void> {
     // Update CCometixLine
     try {
       console.log(ansis.blue(`${i18n.t('cometix:installingOrUpdating')}`))
-      await execAsync(COMETIX_COMMANDS.INSTALL)
-      console.log(ansis.green(`✔ ${i18n.t('cometix:installUpdateSuccess')}`))
+      const result = await execNpmCommand(['install', '-g', COMETIX_PACKAGE_NAME])
+      if (result.exitCode === 0) {
+        console.log(ansis.green(`✔ ${i18n.t('cometix:installUpdateSuccess')}`))
+      }
+      else {
+        console.log(ansis.yellow(`⚠ ${i18n.t('cometix:installUpdateFailed')}: ${result.stderr || 'Update failed'}`))
+      }
     }
     catch (error) {
       console.log(ansis.yellow(`⚠ ${i18n.t('cometix:installUpdateFailed')}: ${error}`))
@@ -53,8 +55,13 @@ export async function installCometixLine(): Promise<void> {
 
   try {
     console.log(ansis.blue(`${i18n.t('cometix:installingCometix')}`))
-    await execAsync(COMETIX_COMMANDS.INSTALL)
-    console.log(ansis.green(`✔ ${i18n.t('cometix:cometixInstallSuccess')}`))
+    const result = await execNpmCommand(['install', '-g', COMETIX_PACKAGE_NAME])
+    if (result.exitCode === 0) {
+      console.log(ansis.green(`✔ ${i18n.t('cometix:cometixInstallSuccess')}`))
+    }
+    else {
+      throw new Error(result.stderr || 'Installation failed')
+    }
 
     // Configure Claude Code statusLine after successful installation
     try {

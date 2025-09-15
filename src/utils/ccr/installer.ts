@@ -3,6 +3,7 @@ import { promisify } from 'node:util'
 import ansis from 'ansis'
 import { ensureI18nInitialized, i18n } from '../../i18n'
 import { updateCcr } from '../auto-updater'
+import { execNpmCommand } from '../exec-wrapper'
 
 const execAsync = promisify(exec)
 
@@ -33,8 +34,8 @@ export async function isCcrInstalled(): Promise<CcrInstallStatus> {
   // Check if the correct package is installed
   let hasCorrectPackage = false
   try {
-    await execAsync('npm list -g @musistudio/claude-code-router')
-    hasCorrectPackage = true
+    const result = await execNpmCommand(['list', '-g', '@musistudio/claude-code-router'], { silent: true })
+    hasCorrectPackage = result.exitCode === 0
   }
   catch {
     // Correct package not found
@@ -79,14 +80,18 @@ export async function installCcr(): Promise<void> {
   if (isInstalled && !hasCorrectPackage) {
     // Try to uninstall the incorrect package
     try {
-      await execAsync('npm list -g claude-code-router')
-      console.log(ansis.yellow(`⚠ ${i18n.t('ccr:detectedIncorrectPackage')}`))
-      try {
-        await execAsync('npm uninstall -g claude-code-router')
-        console.log(ansis.green(`✔ ${i18n.t('ccr:uninstalledIncorrectPackage')}`))
-      }
-      catch {
-        console.log(ansis.yellow(`⚠ ${i18n.t('ccr:failedToUninstallIncorrectPackage')}`))
+      const listResult = await execNpmCommand(['list', '-g', 'claude-code-router'], { silent: true })
+      if (listResult.exitCode === 0) {
+        console.log(ansis.yellow(`⚠ ${i18n.t('ccr:detectedIncorrectPackage')}`))
+        try {
+          const uninstallResult = await execNpmCommand(['uninstall', '-g', 'claude-code-router'])
+          if (uninstallResult.exitCode === 0) {
+            console.log(ansis.green(`✔ ${i18n.t('ccr:uninstalledIncorrectPackage')}`))
+          }
+        }
+        catch {
+          console.log(ansis.yellow(`⚠ ${i18n.t('ccr:failedToUninstallIncorrectPackage')}`))
+        }
       }
     }
     catch {
@@ -99,17 +104,23 @@ export async function installCcr(): Promise<void> {
   console.log(ansis.cyan(`📦 ${i18n.t('ccr:installingCcr')}`))
 
   try {
-    await execAsync('npm install -g @musistudio/claude-code-router --force')
-    console.log(ansis.green(`✔ ${i18n.t('ccr:ccrInstallSuccess')}`))
+    const result = await execNpmCommand(['install', '-g', '@musistudio/claude-code-router', '--force'])
+    if (result.exitCode === 0) {
+      console.log(ansis.green(`✔ ${i18n.t('ccr:ccrInstallSuccess')}`))
+    }
+    else {
+      // Check if it's an EEXIST error
+      if (result.stderr?.includes('EEXIST')) {
+        console.log(ansis.yellow(`⚠ ${i18n.t('ccr:ccrAlreadyInstalled')}`))
+        // Check for updates even if EEXIST error
+        await updateCcr()
+        return
+      }
+      console.error(ansis.red(`✖ ${i18n.t('ccr:ccrInstallFailed')}`))
+      throw new Error(result.stderr || 'Installation failed')
+    }
   }
   catch (error: any) {
-    // Check if it's an EEXIST error
-    if (error.message?.includes('EEXIST')) {
-      console.log(ansis.yellow(`⚠ ${i18n.t('ccr:ccrAlreadyInstalled')}`))
-      // Check for updates even if EEXIST error
-      await updateCcr()
-      return
-    }
     console.error(ansis.red(`✖ ${i18n.t('ccr:ccrInstallFailed')}`))
     throw error
   }

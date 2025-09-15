@@ -1,12 +1,9 @@
-import { exec } from 'node:child_process'
-import { promisify } from 'node:util'
 import ansis from 'ansis'
 import inquirer from 'inquirer'
 import ora from 'ora'
 import { ensureI18nInitialized, format, i18n } from '../i18n'
+import { execNpmCommand } from './exec-wrapper'
 import { checkCcrVersion, checkClaudeCodeVersion, checkCometixLineVersion } from './version-checker'
-
-const execAsync = promisify(exec)
 
 export async function updateCcr(force = false, skipPrompt = false): Promise<boolean> {
   ensureI18nInitialized()
@@ -60,9 +57,16 @@ export async function updateCcr(force = false, skipPrompt = false): Promise<bool
 
     try {
       // Update the package
-      await execAsync('npm update -g @musistudio/claude-code-router')
-      updateSpinner.succeed(format(i18n.t('updater:updateSuccess'), { tool: 'CCR' }))
-      return true
+      const result = await execNpmCommand(['update', '-g', '@musistudio/claude-code-router'])
+      if (result.exitCode === 0) {
+        updateSpinner.succeed(format(i18n.t('updater:updateSuccess'), { tool: 'CCR' }))
+        return true
+      }
+      else {
+        updateSpinner.fail(format(i18n.t('updater:updateFailed'), { tool: 'CCR' }))
+        console.error(ansis.red(result.stderr || 'Update failed'))
+        return false
+      }
     }
     catch (error) {
       updateSpinner.fail(format(i18n.t('updater:updateFailed'), { tool: 'CCR' }))
@@ -128,9 +132,16 @@ export async function updateClaudeCode(force = false, skipPrompt = false): Promi
     const updateSpinner = ora(format(i18n.t('updater:updating'), { tool: 'Claude Code' })).start()
 
     try {
-      await execAsync('npm update -g @anthropic-ai/claude-code')
-      updateSpinner.succeed(format(i18n.t('updater:updateSuccess'), { tool: 'Claude Code' }))
-      return true
+      const result = await execNpmCommand(['update', '-g', '@anthropic-ai/claude-code'])
+      if (result.exitCode === 0) {
+        updateSpinner.succeed(format(i18n.t('updater:updateSuccess'), { tool: 'Claude Code' }))
+        return true
+      }
+      else {
+        updateSpinner.fail(format(i18n.t('updater:updateFailed'), { tool: 'Claude Code' }))
+        console.error(ansis.red(result.stderr || 'Update failed'))
+        return false
+      }
     }
     catch (error) {
       updateSpinner.fail(format(i18n.t('updater:updateFailed'), { tool: 'Claude Code' }))
@@ -197,9 +208,16 @@ export async function updateCometixLine(force = false, skipPrompt = false): Prom
 
     try {
       // Update the package
-      await execAsync('npm update -g @cometix/ccline')
-      updateSpinner.succeed(format(i18n.t('updater:updateSuccess'), { tool: 'CCometixLine' }))
-      return true
+      const result = await execNpmCommand(['update', '-g', '@cometix/ccline'])
+      if (result.exitCode === 0) {
+        updateSpinner.succeed(format(i18n.t('updater:updateSuccess'), { tool: 'CCometixLine' }))
+        return true
+      }
+      else {
+        updateSpinner.fail(format(i18n.t('updater:updateFailed'), { tool: 'CCometixLine' }))
+        console.error(ansis.red(result.stderr || 'Update failed'))
+        return false
+      }
     }
     catch (error) {
       updateSpinner.fail(format(i18n.t('updater:updateFailed'), { tool: 'CCometixLine' }))

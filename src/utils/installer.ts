@@ -1,9 +1,9 @@
 import { homedir } from 'node:os'
 import ansis from 'ansis'
 import { join } from 'pathe'
-import { exec } from 'tinyexec'
 import { ensureI18nInitialized, i18n } from '../i18n'
 import { updateClaudeCode } from './auto-updater'
+import { execNpmCommand } from './exec-wrapper'
 import { exists, isExecutable, remove } from './fs-operations'
 import { commandExists, getTermuxPrefix, getWSLInfo, isTermux, isWSL } from './platform'
 
@@ -49,17 +49,23 @@ export async function installClaudeCode(): Promise<void> {
   try {
     // Always use npm for installation to ensure automatic updates work
     // Note: If the user can run 'npx zcf', npm is already available
-    await exec('npm', ['install', '-g', '@anthropic-ai/claude-code'])
-    console.log(`✔ ${i18n.t('installation:installSuccess')}`)
+    const result = await execNpmCommand(['install', '-g', '@anthropic-ai/claude-code'])
 
-    // Additional hint for Termux users
-    if (isTermux()) {
-      console.log(ansis.gray(`\nClaude Code installed to: ${getTermuxPrefix()}/bin/claude`))
+    if (result.exitCode === 0) {
+      console.log(`✔ ${i18n.t('installation:installSuccess')}`)
+
+      // Additional hint for Termux users
+      if (isTermux()) {
+        console.log(ansis.gray(`\nClaude Code installed to: ${getTermuxPrefix()}/bin/claude`))
+      }
+
+      // Additional hint for WSL users
+      if (isWSL()) {
+        console.log(ansis.gray(`\n${i18n.t('installation:wslInstallSuccess')}`))
+      }
     }
-
-    // Additional hint for WSL users
-    if (isWSL()) {
-      console.log(ansis.gray(`\n${i18n.t('installation:wslInstallSuccess')}`))
+    else {
+      throw new Error(result.stderr || 'Installation failed')
     }
   }
   catch (error) {
