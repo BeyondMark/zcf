@@ -1,0 +1,14 @@
+{
+  "sudoRequired": "需要管理员权限来安装全局 npm 包",
+  "sudoReason": "npm 全局目录需要管理员权限，请输入密码",
+  "sudoNotAvailable": "系统中未找到 sudo 命令，将尝试直接安装",
+  "elevationRequired": "需要管理员权限来安装全局 npm 包",
+  "runAsAdmin": "请以管理员身份运行此命令",
+  "permissionDenied": "权限被拒绝，无法安装到系统目录",
+  "tryUserInstall": "建议配置 npm 使用用户目录：npm config set prefix ~/.npm-global",
+  "checkingPermissions": "正在检查 npm 权限...",
+  "directInstall": "直接安装（无需特殊权限）",
+  "sudoInstall": "使用 sudo 安装",
+  "elevatedInstall": "需要管理员权限安装",
+  "nonInteractiveMode": "非交互式终端无法使用 sudo，请在交互式终端中运行"
+}

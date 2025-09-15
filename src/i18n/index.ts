@@ -23,6 +23,7 @@ const NAMESPACES = [
   'language',
   'mcp',
   'menu',
+  'npm',
   'tools',
   'updater',
   'workflow',

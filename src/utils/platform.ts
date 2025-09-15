@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { platform } from 'node:os'
 import process from 'node:process'
 import { exec } from 'tinyexec'
@@ -157,4 +157,130 @@ export async function commandExists(command: string): Promise<boolean> {
   }
 
   return false
+}
+
+/**
+ * Get npm global prefix path
+ */
+export async function getNpmPrefix(): Promise<string> {
+  try {
+    const result = await exec('npm', ['config', 'get', 'prefix'])
+    return result.stdout.trim()
+  }
+  catch {
+    // Fallback to default paths
+    if (isWindows()) {
+      return process.env.APPDATA ? `${process.env.APPDATA}\\npm` : 'C:\\Program Files\\nodejs'
+    }
+    if (isTermux()) {
+      return getTermuxPrefix()
+    }
+    return '/usr/local'
+  }
+}
+
+/**
+ * Check if current user can write to npm global directory
+ */
+export async function canWriteToNpmPrefix(): Promise<boolean> {
+  try {
+    const prefix = await getNpmPrefix()
+    const nodeModulesPath = isWindows()
+      ? `${prefix}\\node_modules`
+      : `${prefix}/lib/node_modules`
+
+    if (!existsSync(nodeModulesPath)) {
+      // If directory doesn't exist, check parent directory
+      return canWriteToPath(prefix)
+    }
+
+    return canWriteToPath(nodeModulesPath)
+  }
+  catch {
+    return false
+  }
+}
+
+/**
+ * Check if a path is writable by current user
+ */
+function canWriteToPath(path: string): boolean {
+  try {
+    const stats = statSync(path)
+    const uid = process.getuid?.() ?? -1
+    const gid = process.getgid?.() ?? -1
+
+    // On Windows, we can't reliably check permissions this way
+    if (isWindows()) {
+      // Windows doesn't have getuid/getgid, assume we need elevation if in Program Files
+      return !path.includes('Program Files')
+    }
+
+    // Check if we own the directory
+    if (stats.uid === uid) {
+      // Check owner write permission
+      return (stats.mode & 0o200) !== 0
+    }
+
+    // Check if we're in the group
+    if (stats.gid === gid) {
+      // Check group write permission
+      return (stats.mode & 0o020) !== 0
+    }
+
+    // Check other write permission
+    return (stats.mode & 0o002) !== 0
+  }
+  catch {
+    return false
+  }
+}
+
+/**
+ * Check if npm commands need sudo/elevation
+ */
+export async function needsSudoForNpm(): Promise<boolean> {
+  // Windows doesn't use sudo (but may need elevation)
+  // Termux never needs sudo
+  if (isTermux()) {
+    return false
+  }
+
+  // On Windows, check if npm prefix is in Program Files
+  if (isWindows()) {
+    const prefix = await getNpmPrefix()
+    return prefix.includes('Program Files')
+  }
+
+  // For Unix-like systems (macOS, Linux, WSL), check write permissions
+  return !(await canWriteToNpmPrefix())
+}
+
+/**
+ * Get platform-specific npm permission strategy
+ */
+export async function getNpmPermissionStrategy(): Promise<'direct' | 'sudo' | 'elevation'> {
+  if (isTermux()) {
+    return 'direct'
+  }
+
+  if (isWindows()) {
+    const needsElevation = await needsSudoForNpm()
+    return needsElevation ? 'elevation' : 'direct'
+  }
+
+  // Unix-like systems
+  const needsSudo = await needsSudoForNpm()
+  return needsSudo ? 'sudo' : 'direct'
+}
+
+/**
+ * Check if sudo command is available
+ */
+export async function hasSudoCommand(): Promise<boolean> {
+  if (isWindows() || isTermux()) {
+    return false
+  }
+
+  return await commandExists('sudo')
 }

@@ -1,0 +1,14 @@
+{
+  "sudoRequired": "Administrator privileges required for global npm packages",
+  "sudoReason": "npm global directory requires admin access, please enter password",
+  "sudoNotAvailable": "sudo command not found, attempting direct installation",
+  "elevationRequired": "Administrator privileges required for global npm packages",
+  "runAsAdmin": "Please run this command as administrator",
+  "permissionDenied": "Permission denied, cannot install to system directory",
+  "tryUserInstall": "Consider configuring npm to use user directory: npm config set prefix ~/.npm-global",
+  "checkingPermissions": "Checking npm permissions...",
+  "directInstall": "Direct installation (no special permissions needed)",
+  "sudoInstall": "Installing with sudo",
+  "elevatedInstall": "Administrator privileges required for installation",
+  "nonInteractiveMode": "Cannot use sudo in non-interactive terminal, please run in an interactive terminal"
+}
